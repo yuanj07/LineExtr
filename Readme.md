@@ -4,8 +4,6 @@ This software extracts straight lines from images. The algorithm is based on the
 
 **J. Yuan and A. M. Cheriyadat, Learning to count buildings in diverse aerial scenes. ACM SIGSPATIAL GIS, 2014.**
 
-This is a software for non-commercial purpose. Please contact the author for commercial use.
-
 ## Initial setup
 
 To run the code, you need Matlab with image processing tool box and mex is configured correctly (type mex -setup in the matlab prompt).
