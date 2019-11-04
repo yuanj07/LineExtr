@@ -1,6 +1,6 @@
 # Straight Line Extraction
 
-This software extracts straight lines from images. The algorithm is based on the line support region idea (Burns'86), which is to first detect regions containing connected pixels with similar gradient orientations and then infer line orientations and center locations based detected regions. Unlike other work, we use structure tensor to estimate line orientation and Hough transform to locate centers, which are fast to compute and robust to noise. The algorithm is described in  
+The algorithm is based on the line support region idea (Burns'86), which is to first detect regions containing connected pixels with similar gradient orientations and then infer line orientations and center locations based detected regions. The main difference is that we use structure tensor to estimate line orientation and Hough transform to locate centers, which are fast to compute and robust to noise. The algorithm is described in  
 
 **J. Yuan and A. M. Cheriyadat, Learning to count buildings in diverse aerial scenes. ACM SIGSPATIAL GIS, 2014.**
 
