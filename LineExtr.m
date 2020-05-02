@@ -1,7 +1,5 @@
 function [lsfarr]=LineExtr(im,mag,sw)
 %  Extracts straight lines from the input image.
-%  LSFARR=getLSF(IM,SW) extracts lines and line support features from the 
-%  input image. 
 
 %  im: the input image with MxNx3 for color and MxN for grayscale.
 %  mag: pixels with gradient magntitude >= mag are used for line support regions.
@@ -15,19 +13,6 @@ function [lsfarr]=LineExtr(im,mag,sw)
 %  LSFARR(:,3) represent the y coordinate of line centroid.
 %  LSFARR(:,4) represent the line orientation.
 %  LSFARR(:,5) represent the line contrast.
-%  Ref:
-%  [1] J. B. Bums, A. R. Hanson, and E. M. Riseman. Extracting
-%      straight lines. IEEE Trans. on Pattern Analysis and Machine
-%      Intelligence, 8:425–455, 1986. 3
-%  [2] J. Yuan and A. Cheriyadat. Learning to count buildings in diverse  
-%      aerial scene. ACM SIGSPATIAL GIS, 2014
-
-%  Author: 
-%  Jiangye Yuan
-%  Oak Ridge National Laboratory
-%  Date written: 02/15/2014
-%  Copyright: ORNL
-
 
 %% Convert image to grayscale
 im0 = im;
@@ -41,29 +26,34 @@ im = double(im);
 [edoim edmim Dx Dy] = im2edoim2(im);
 
 magThreshold=mag;
-lsrThreshold = 20; %threshold for smallest line support region
+lsrThreshold = 10; %threshold for smallest line support region
 
 tmp=edoim+180;
 tmp(edmim<magThreshold)=-1;
-lsrM=RgGrw(single(tmp),8,30);
 
-line_idx=unique(lsrM);
+lsrM=RgGrw(single(tmp),8,25);
+
+region_stats = regionprops(lsrM,'PixelIdxList');
+
 lsfarr = zeros(max(lsrM(:)),5);
 cnt = 0;
-for l = 1:max(line_idx)
-    idx=find(lsrM==l);
+for l = 1:numel(region_stats)
+    idx=region_stats(l).PixelIdxList;
     
-    eim = zeros(size(im));
-    eim(idx) = 1;    
+    [Ytmp,Xtmp]=ind2sub(size(im),idx);
+    bbox_h=max(Ytmp)-min(Ytmp);
+    bbox_w=max(Xtmp)-min(Xtmp);
     
-    if (sum(eim(:)) <= lsrThreshold) %ignore small line support region.
+    bbox_diag=sqrt(bbox_h^2 + bbox_w^2);
+
+    if (bbox_diag < lsrThreshold) %ignore small line support region.
         continue;
     end 
     
     Ix_wi=Dx(idx);
     Iy_wi=Dy(idx); 
     grd_wi=edmim(idx);
-     % find major orientation
+     % find line orientation
     ST=[sum(Ix_wi.^2) sum(Ix_wi.*Iy_wi); sum(Ix_wi.*Iy_wi) sum(Iy_wi.^2)];
     [V,D] = eig(ST);
     if D(1,1)<D(2,2)
@@ -73,34 +63,43 @@ for l = 1:max(line_idx)
     end 
 
     % vote for r
-    [Ytmp,Xtmp]=ind2sub(size(im),idx);
-
     Raccm=round(Xtmp.*cos(lorn-pi/2)+Ytmp.*sin(lorn-pi/2));
-    rng=min(Raccm):max(Raccm);
-    accm=zeros(1,length(rng));
     
-    for k=1:length(idx)
-        rc=round(Xtmp(k).*cos(lorn-pi/2)+Ytmp(k).*sin(lorn-pi/2));
-        accm(rng==rc)=accm(rng==rc)+grd_wi(k);
+    if max(Raccm) == min(Raccm)
+        row_ln = Ytmp;
+        col_ln = Xtmp;
+    else
+        Rrng=min(Raccm):max(Raccm);
+        accm=zeros(1,length(Rrng));
+
+        for k=1:length(Rrng)
+            accm(k)=sum(grd_wi(Raccm==Rrng(k)));
+        end
+        
+        [~,mxid]=max(accm);
+        row_ln=Ytmp(Raccm==Rrng(mxid)); 
+        col_ln=Xtmp(Raccm==Rrng(mxid)); 
     end
     
-    [~,mxid]=max(accm);
-    Xmx=max(Xtmp(Raccm==rng(mxid)));
-    Xmn=min(Xtmp(Raccm==rng(mxid)));
-    Ymx=max(Ytmp(Raccm==rng(mxid)));
-    Ymn=min(Ytmp(Raccm==rng(mxid)));
+    % (row_ln, col_ln) are pixels on detected lines
+    Xmx=max(col_ln);
+    Xmn=min(col_ln);
+    Ymx=max(row_ln);
+    Ymn=min(row_ln);
     
     lmx = (Xmx+Xmn)/2;
     lmy = (Ymx+Ymn)/2;
     llen = sqrt((Xmx-Xmn)^2+(Ymx-Ymn)^2);
     
-    cnt=cnt+1;
-    lsfarr(cnt,1) = llen;
-    lsfarr(cnt,2) = lmx;
-    lsfarr(cnt,3) = lmy;
-    lsfarr(cnt,4) = lorn;
-    lcon=mean(grd_wi((Raccm==rng(mxid))));
-    lsfarr(cnt,5) = lcon;    
+    if (llen >= lsrThreshold) 
+        cnt=cnt+1;
+        lsfarr(cnt,1) = llen;
+        lsfarr(cnt,2) = lmx;
+        lsfarr(cnt,3) = lmy;
+        lsfarr(cnt,4) = lorn;
+        lcon=mean(grd_wi(Raccm==Rrng(mxid)));
+        lsfarr(cnt,5) = lcon;  
+    end   
 end
 
 lsfarr = lsfarr(1:cnt,:);
